@@ -16,7 +16,7 @@ def init_db():
                   expires TEXT, machine_id TEXT, total_used INTEGER)''')
     conn.commit()
     conn.close()
-
+init_db() # <- ADD THIS LINE HERE
 def generate_key(prefix):
     rand = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     return f"{prefix}-{rand}"
