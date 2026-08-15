@@ -26,7 +26,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-@app.route('/api', methods=['POST'])
+@app.route('/verify', methods=['POST'])
 def api():
     # security check
     if request.headers.get('X-App-Key') != APP_SECRET:
