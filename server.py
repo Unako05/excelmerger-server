@@ -5,7 +5,7 @@ import random
 import string
 
 app = Flask(__name__)
-DB = 'licenses.db'
+DB = 'licenses_v3.db'
 APP_SECRET = "sk_excelmerger_2026" # must match the one in your exe
 
 def init_db():
