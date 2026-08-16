@@ -6,7 +6,7 @@ import string
 import os  # <--- ADD THIS
 
 app = Flask(__name__)
-DB = 'licenses.db'
+DB = 'licenses_v2.db'  # <-- ONLY CHANGE THIS
 APP_SECRET = "sk_excelmerger_2026" # must match the one in your exe
 
 # FORCE DELETE OLD DB ON START - DELETE THESE 3 LINES AFTER 1 DEPLOY <--- ADD THIS
