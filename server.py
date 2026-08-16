@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, render_template_string
 import sqlite3
 import datetime
@@ -5,7 +6,7 @@ import random
 import string
 
 app = Flask(__name__)
-DB = 'licenses_v3.db'
+DB = 'licenses.db'
 APP_SECRET = "sk_excelmerger_2026" # must match the one in your exe
 
 def init_db():
@@ -26,6 +27,10 @@ def get_db():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     return conn
+
+@app.before_first_request # <-- FIX 1: RUNS ON GUNICORN BOOT
+def startup():
+    init_db()
 
 @app.route('/verify', methods=['POST'])
 def verify():
@@ -90,16 +95,13 @@ def admin():
         elif plan == "30 Day Unlimited": credits, prefix, expires = -1, "EMP-30D", (datetime.datetime.now() + datetime.timedelta(days=30)).isoformat()
         key = generate_key(prefix)
         conn.execute("INSERT INTO licenses VALUES (?,?,?,?,?,?)", (key, plan, credits, expires, None, 0)); conn.commit()
+        
     licenses = conn.execute("SELECT * FROM licenses ORDER BY key DESC").fetchall()
     return render_template_string(ADMIN_HTML, licenses=licenses)
 
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5000)
- 
-
-  
-
 
 
 
