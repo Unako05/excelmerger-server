@@ -7,7 +7,9 @@ import string
 app = Flask(__name__)
 DB = 'licenses.db'
 APP_SECRET = "sk_excelmerger_2026" # must match the one in your exe
-
+    import os
+    if os.path.exists('licenses.db'):
+        os.remove('licenses.db')  # DELETE OLD DB ON START
 def init_db():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
