@@ -3,13 +3,16 @@ import sqlite3
 import datetime
 import random
 import string
+import os  # <--- ADD THIS
 
 app = Flask(__name__)
 DB = 'licenses.db'
 APP_SECRET = "sk_excelmerger_2026" # must match the one in your exe
-import os
- if os.path.exists('licenses.db'):
- os.remove('licenses.db')  # DELETE OLD DB ON START
+
+# FORCE DELETE OLD DB ON START - DELETE THESE 3 LINES AFTER 1 DEPLOY <--- ADD THIS
+if os.path.exists(DB):  # <--- ADD THIS
+    os.remove(DB)       # <--- ADD THIS
+
 def init_db():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
@@ -126,3 +129,12 @@ def admin():
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5000)
+
+
+
+
+
+
+
+
+
