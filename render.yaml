@@ -7,12 +7,10 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn server:app
     autoDeploy: true
-    
     disk:
       name: license-db-disk
       mountPath: /data
       sizeGB: 1
-    
     envVars:
             - key: DATABASE_URL
         value: sqlite:////data/licenses.db
