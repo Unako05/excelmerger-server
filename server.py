@@ -5,7 +5,7 @@ import os, secrets, string
 
 app = Flask(__name__)
 
-# FIX 1: Render gives postgres:// but SQLAlchemy needs postgresql://
+# FIX: Render gives postgres:// but SQLAlchemy needs postgresql://
 DB_PATH = os.environ.get("DATABASE_URL", "sqlite:///licenses.db")
 if DB_PATH.startswith("postgres://"):
     DB_PATH = DB_PATH.replace("postgres://", "postgresql://", 1)
@@ -26,7 +26,6 @@ class License(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
-        # FIX 2: handle None expires_at better
         exp = "Never"
         if self.expires_at:
             exp = self.expires_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
@@ -37,32 +36,52 @@ class License(db.Model):
             "machine_id": self.machine_id or "Not Activated"
         }
 
-# FIX 3: Create tables on startup
+# Create tables on startup
 with app.app_context(): 
     db.create_all()
 
-def gen_key(): return "EMP-" + ''.join(secrets.choice(string.ascii_uppercase + string.DIGITS) for _ in range(12))
+def gen_key(): 
+    # FIXED: string.digits not DIGITS
+    return "EMP-" + ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(12))
 
-# --- YOUR APP ENDPOINT - NO CHANGES ---
+# --- YOUR APP ENDPOINT ---
 @app.route("/verify", methods=["POST"])
 def verify():
-    if request.headers.get("X-App-Key") != APP_KEY: return jsonify({"status": "INVALID_KEY"}), 403
-    data = request.get_json(); key = data.get("key"); machine_id = data.get("machine_id"); action = data.get("action")
+    if request.headers.get("X-App-Key") != APP_KEY: 
+        return jsonify({"status": "INVALID_KEY"}), 403
+    
+    data = request.get_json()
+    key = data.get("key")
+    machine_id = data.get("machine_id")
+    action = data.get("action")
+    
     license = License.query.filter_by(key=key).first()
-    if not license: return jsonify({"status": "INVALID"})
+    if not license: 
+        return jsonify({"status": "INVALID"})
+    
     now = datetime.now(timezone.utc)
-    if license.credits_left == -1 and license.expires_at and license.expires_at.replace(tzinfo=timezone.utc) < now: return jsonify({"status": "EXPIRED"})
-    if license.credits_left == 0: return jsonify({"status": "NO_CREDITS"})
-    if license.machine_id and license.machine_id != machine_id: return jsonify({"status": "ALREADY_USED"})
+    if license.credits_left == -1 and license.expires_at and license.expires_at.replace(tzinfo=timezone.utc) < now: 
+        return jsonify({"status": "EXPIRED"})
+    if license.credits_left == 0: 
+        return jsonify({"status": "NO_CREDITS"})
+    if license.machine_id and license.machine_id != machine_id: 
+        return jsonify({"status": "ALREADY_USED"})
+    
     if action == "check" or action == "activate":
-        if action == "activate" and not license.machine_id: license.machine_id = machine_id; db.session.commit()
+        if action == "activate" and not license.machine_id: 
+            license.machine_id = machine_id
+            db.session.commit()
         return jsonify({"status": "OK", **license.to_dict()})
+    
     elif action == "use_credit":
-        if license.credits_left > 0: license.credits_left -= 1; db.session.commit()
+        if license.credits_left > 0: 
+            license.credits_left -= 1
+            db.session.commit()
         return jsonify({"status": "OK", **license.to_dict()})
+    
     return jsonify({"status": "UNKNOWN_ACTION"})
 
-# --- NEW ADMIN PAGE WITH BUTTON ---
+# --- ADMIN PAGE ---
 HTML = """
 <!doctype html>
 <html>
@@ -114,7 +133,10 @@ def generate_key():
     credits = 5 if plan == "5 Merges" else 10 if plan == "10 Merges" else -1
     expires_at = datetime.now(timezone.utc) + timedelta(days=30) if plan == "30 Day Unlimited" else None
     new_license = License(key=key, plan=plan, credits_left=credits, expires_at=expires_at)
-    db.session.add(new_license); db.session.commit()
+    db.session.add(new_license)
+    db.session.commit()
     return admin_page() # reload page with new key in table
 
-if __name__ == "__main__": app.run(host="0.0.0.0", port=5000)
+if __name__ == "__main__": 
+    app.run(host="0.0.0.0", port=5000)
+
