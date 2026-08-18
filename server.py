@@ -4,7 +4,12 @@ from datetime import datetime, timedelta, timezone
 import os, secrets, string
 
 app = Flask(__name__)
+
+# FIX 1: Render gives postgres:// but SQLAlchemy needs postgresql://
 DB_PATH = os.environ.get("DATABASE_URL", "sqlite:///licenses.db")
+if DB_PATH.startswith("postgres://"):
+    DB_PATH = DB_PATH.replace("postgres://", "postgresql://", 1)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = DB_PATH
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
@@ -21,14 +26,20 @@ class License(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
+        # FIX 2: handle None expires_at better
+        exp = "Never"
+        if self.expires_at:
+            exp = self.expires_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
         return {
             "id": self.id, "key": self.key, "plan": self.plan, 
             "credits_left": self.credits_left,
-            "expires_at": self.expires_at.isoformat() + "Z" if self.expires_at else "Never",
+            "expires_at": exp,
             "machine_id": self.machine_id or "Not Activated"
         }
 
-with app.app_context(): db.create_all()
+# FIX 3: Create tables on startup
+with app.app_context(): 
+    db.create_all()
 
 def gen_key(): return "EMP-" + ''.join(secrets.choice(string.ascii_uppercase + string.DIGITS) for _ in range(12))
 
@@ -40,7 +51,7 @@ def verify():
     license = License.query.filter_by(key=key).first()
     if not license: return jsonify({"status": "INVALID"})
     now = datetime.now(timezone.utc)
-    if license.credits_left == -1 and license.expires_at and license.expires_at < now: return jsonify({"status": "EXPIRED"})
+    if license.credits_left == -1 and license.expires_at and license.expires_at.replace(tzinfo=timezone.utc) < now: return jsonify({"status": "EXPIRED"})
     if license.credits_left == 0: return jsonify({"status": "NO_CREDITS"})
     if license.machine_id and license.machine_id != machine_id: return jsonify({"status": "ALREADY_USED"})
     if action == "check" or action == "activate":
