@@ -6,8 +6,9 @@ import os, secrets, string
 app = Flask(__name__)
 
 # --- SECURITY CONFIG ---
-ADMIN_PASSWORD = "UnakoCekiso#2005"  # <-- PUT YOUR PASSWORD HERE e.g. "MySecret2026!"
-APP_KEY = "sk_excelmerger_2026"       # <-- This one is already correct, don't change
+# Reads password from Render Environment Variable, falls back to what you type here for local testing
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "UnakoCekiso#2005")  # <-- Put same password here as fallback
+APP_KEY = "sk_excelmerger_2026"
 
 # FIX: Render gives postgres:// but SQLAlchemy needs postgresql://
 DB_PATH = os.environ.get("DATABASE_URL", "sqlite:///licenses.db")
@@ -38,15 +39,12 @@ class License(db.Model):
             "machine_id": self.machine_id or "Not Activated"
         }
 
-# Create tables on startup
 with app.app_context(): 
     db.create_all()
 
 def gen_key(): 
-    # FIXED: string.digits not DIGITS
     return "EMP-" + ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(12))
 
-# --- YOUR APP ENDPOINT ---
 @app.route("/verify", methods=["POST"])
 def verify():
     if request.headers.get("X-App-Key") != APP_KEY: 
@@ -83,7 +81,6 @@ def verify():
     
     return jsonify({"status": "UNKNOWN_ACTION"})
 
-# --- ADMIN PAGE ---
 HTML = """
 <!doctype html>
 <html>
@@ -126,7 +123,7 @@ th{background:#2563eb;color:white} code{background:#eee;padding:2px 5px}</style>
 @app.route("/admin", methods=["GET"])
 def admin_page():
     pwd = request.args.get("pwd", "")
-    if pwd != ADMIN_PASSWORD:  # <-- Checks password
+    if pwd != ADMIN_PASSWORD:
         return "Unauthorized - Wrong password. Use /admin?pwd=YOUR_PASSWORD", 401
     
     licenses = License.query.order_by(License.id.desc()).all()
@@ -135,7 +132,7 @@ def admin_page():
 @app.route("/admin/generate", methods=["POST"])
 def generate_key():
     pwd = request.args.get("pwd", "")
-    if pwd != ADMIN_PASSWORD:  # <-- Checks password again for generating
+    if pwd != ADMIN_PASSWORD:
         return "Unauthorized", 401
 
     plan = request.form.get("plan")
@@ -145,7 +142,6 @@ def generate_key():
     new_license = License(key=key, plan=plan, credits_left=credits, expires_at=expires_at)
     db.session.add(new_license)
     db.session.commit()
-    # Reload page with password kept in URL
     licenses = License.query.order_by(License.id.desc()).all()
     return render_template_string(HTML, licenses=[l.to_dict() for l in licenses], pwd=pwd)
 
