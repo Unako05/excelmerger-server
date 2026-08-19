@@ -5,6 +5,10 @@ import os, secrets, string
 
 app = Flask(__name__)
 
+# --- SECURITY CONFIG ---
+ADMIN_PASSWORD = "UnakoCekiso#2005"  # <-- PUT YOUR PASSWORD HERE e.g. "MySecret2026!"
+APP_KEY = "sk_excelmerger_2026"       # <-- This one is already correct, don't change
+
 # FIX: Render gives postgres:// but SQLAlchemy needs postgresql://
 DB_PATH = os.environ.get("DATABASE_URL", "sqlite:///licenses.db")
 if DB_PATH.startswith("postgres://"):
@@ -13,8 +17,6 @@ if DB_PATH.startswith("postgres://"):
 app.config["SQLALCHEMY_DATABASE_URI"] = DB_PATH
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
-
-APP_KEY = "sk_excelmerger_2026"
 
 class License(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -94,7 +96,7 @@ th{background:#2563eb;color:white} code{background:#eee;padding:2px 5px}</style>
 </head>
 <body>
 <h1>ExcelMergerPro License Admin</h1>
-<form action="/admin/generate" method="post">
+<form action="/admin/generate?pwd={{pwd}}" method="post">
   <label><b>Select Plan:</b></label>
   <select name="plan">
     <option>5 Merges</option>
@@ -123,11 +125,19 @@ th{background:#2563eb;color:white} code{background:#eee;padding:2px 5px}</style>
 
 @app.route("/admin", methods=["GET"])
 def admin_page():
+    pwd = request.args.get("pwd", "")
+    if pwd != ADMIN_PASSWORD:  # <-- Checks password
+        return "Unauthorized - Wrong password. Use /admin?pwd=YOUR_PASSWORD", 401
+    
     licenses = License.query.order_by(License.id.desc()).all()
-    return render_template_string(HTML, licenses=[l.to_dict() for l in licenses])
+    return render_template_string(HTML, licenses=[l.to_dict() for l in licenses], pwd=pwd)
 
 @app.route("/admin/generate", methods=["POST"])
 def generate_key():
+    pwd = request.args.get("pwd", "")
+    if pwd != ADMIN_PASSWORD:  # <-- Checks password again for generating
+        return "Unauthorized", 401
+
     plan = request.form.get("plan")
     key = gen_key()
     credits = 5 if plan == "5 Merges" else 10 if plan == "10 Merges" else -1
@@ -135,8 +145,9 @@ def generate_key():
     new_license = License(key=key, plan=plan, credits_left=credits, expires_at=expires_at)
     db.session.add(new_license)
     db.session.commit()
-    return admin_page() # reload page with new key in table
+    # Reload page with password kept in URL
+    licenses = License.query.order_by(License.id.desc()).all()
+    return render_template_string(HTML, licenses=[l.to_dict() for l in licenses], pwd=pwd)
 
 if __name__ == "__main__": 
     app.run(host="0.0.0.0", port=5000)
-
