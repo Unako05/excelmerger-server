@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # --- SECURITY CONFIG ---
 # Reads password from Render Environment Variable, falls back to what you type here for local testing
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "UnakoCekiso#2005")  # <-- Put same password here as fallback
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "UnakoCekiso2005")  # <-- Put same password here as fallback
 APP_KEY = "sk_excelmerger_2026"
 
 # FIX: Render gives postgres:// but SQLAlchemy needs postgresql://
